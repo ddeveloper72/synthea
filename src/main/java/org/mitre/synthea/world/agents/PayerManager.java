@@ -247,8 +247,8 @@ public class PayerManager {
    * @param line The Map with the CSV key-value pairs.
    */
   private static void csvLineToPlan(Map<String, String> line) {
-    int payerId = Integer.parseInt(line.remove(PAYER_ID).trim());
-    int planId = Integer.parseInt(line.remove(PLAN_ID).trim());
+    int payerId = Integer.parseInt(getTrimmedValue(line, PAYER_ID));
+    int planId = Integer.parseInt(getTrimmedValue(line, PLAN_ID));
     if (planId < 0) {
       throw new RuntimeException("Plan IDs must be non-negative. Given Id " + planId + ".");
     }
@@ -256,27 +256,27 @@ public class PayerManager {
       // Return without an error, because the given payer might only exist in another state.
       return;
     }
-    String planName = line.remove(NAME).trim();
+    String planName = getTrimmedValue(line, NAME);
     Set<String> servicesCovered
-        = commaSeparatedStringToHashSet(line.remove(SERVICES_COVERED).trim());
-    BigDecimal deductible = new BigDecimal(line.remove(DEDUCTIBLE).trim());
-    BigDecimal defaultCoinsurance = new BigDecimal(line.remove(COINSURANCE).trim());
-    BigDecimal defaultCopay = new BigDecimal(line.remove(COPAY).trim());
-    BigDecimal monthlyPremium = new BigDecimal(line.remove(MONTHLY_PREMIUM).trim());
-    boolean medicareSupplement = Boolean.parseBoolean(line.remove(MEDICARE_SUPPLEMENT).trim());
-    boolean isACA = Boolean.parseBoolean(line.remove(ACA).trim());
-    boolean incomeBasedPremium = Boolean.parseBoolean(line.remove(INCOME_BASED_PREMIUM).trim());
-    String yearStartStr = line.remove(START_YEAR).trim();
+        = commaSeparatedStringToHashSet(getTrimmedValue(line, SERVICES_COVERED));
+    BigDecimal deductible = new BigDecimal(getTrimmedValue(line, DEDUCTIBLE));
+    BigDecimal defaultCoinsurance = new BigDecimal(getTrimmedValue(line, COINSURANCE));
+    BigDecimal defaultCopay = new BigDecimal(getTrimmedValue(line, COPAY));
+    BigDecimal monthlyPremium = new BigDecimal(getTrimmedValue(line, MONTHLY_PREMIUM));
+    boolean medicareSupplement = Boolean.parseBoolean(getTrimmedValue(line, MEDICARE_SUPPLEMENT));
+    boolean isACA = Boolean.parseBoolean(getTrimmedValue(line, ACA));
+    boolean incomeBasedPremium = Boolean.parseBoolean(getTrimmedValue(line, INCOME_BASED_PREMIUM));
+    String yearStartStr = getTrimmedValue(line, START_YEAR);
     int yearStart = yearStartStr.equals("") ? 0 : Integer.parseInt(yearStartStr);
-    String yearEndStr = line.remove(END_YEAR).trim();
+    String yearEndStr = getTrimmedValue(line, END_YEAR);
     int yearEnd = StringUtils.isBlank(yearEndStr)
         ? Integer.MAX_VALUE : Integer.parseInt(yearEndStr);
-    BigDecimal maxOutOfPocket = new BigDecimal(line.remove(MAX_OOP).trim());
+    BigDecimal maxOutOfPocket = new BigDecimal(getTrimmedValue(line, MAX_OOP));
     // If the priority is blank, give it minimum priority (maximum int value).
-    String priorityString = line.remove(PRIORITY_LEVEL).trim();
+    String priorityString = getTrimmedValue(line, PRIORITY_LEVEL);
     int priority = StringUtils.isBlank(priorityString)
         ? Integer.MAX_VALUE : Integer.parseInt(priorityString);
-    String eligibilityName = line.remove(ELIGIBILITY_POLICY);
+    String eligibilityName = getTrimmedValue(line, ELIGIBILITY_POLICY);
 
     Payer payer = PayerManager.payers.get(payerId);
     InsurancePlan newPlan = new InsurancePlan(planId, payer, servicesCovered, deductible,
@@ -294,6 +294,37 @@ public class PayerManager {
   private static Set<String> commaSeparatedStringToHashSet(String field) {
     String[] commaSeparatedField = field.split("\\s*,\\s*");
     return Arrays.stream(commaSeparatedField).collect(Collectors.toSet());
+  }
+
+  /**
+   * Gets the trimmed value from the map for the given key.
+   *
+   * @param map the map containing the key-value pairs.
+   * @param key the key to look for in the map.
+   * @return the trimmed value associated with the key.
+   */
+  private static String getTrimmedValue(Map<String, String> map, String key) {
+    String value = map.remove(key);
+    if (value == null) {
+      // Provide a default value for missing fields
+      switch (key) {
+        case ACA:
+          value = "false";
+          break;
+        case INCOME_BASED_PREMIUM:
+          value = "false";
+          break;
+        case MAX_OOP:
+          value = "0";
+          break;
+        case PRIORITY_LEVEL:
+          value = String.valueOf(Integer.MAX_VALUE);
+          break;
+        default:
+          throw new RuntimeException("Missing required field: " + key);
+      }
+    }
+    return value.trim();
   }
 
   /**
